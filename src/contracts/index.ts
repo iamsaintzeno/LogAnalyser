@@ -17,7 +17,7 @@ export type BlocklistFormat =
 export interface LogEntry {
   id: number;
   ip: string;
-  ts: number;
+  ts: number; // epoch ms UTC
   method: string;
   path: string;
   query: string;
@@ -53,7 +53,7 @@ export interface AttackerIPSummary {
 }
 
 export interface TimelineBucket {
-  t: number;
+  t: number; // bucket start, 5-min
   total: number;
   byType: Record<ThreatType, number>;
 }
@@ -103,7 +103,7 @@ export interface BlocklistRuleRow extends BlocklistRule {
 export interface ParseResult {
   session: ParsedLogSession;
   events: ThreatEvent[];
-  entries: LogEntry[];
+  entries: LogEntry[]; // flagged only, max 20,000
 }
 
 export const WEIGHTS: Record<ThreatType, number> = {
