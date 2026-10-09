@@ -1,20 +1,9 @@
 {
-<<<<<<< HEAD
-  "name": "loganalyser-engine",
-  "private": true,
-  "type": "module",
-=======
->>>>>>> origin/main
   "scripts": {
     "test": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
-<<<<<<< HEAD
-    "typescript": "^7.0.2",
-    "vitest": "^3.2.4"
-=======
     "vitest": "^5.0.3"
->>>>>>> origin/main
   }
 }

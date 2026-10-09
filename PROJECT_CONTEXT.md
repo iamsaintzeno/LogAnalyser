@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-# PROJECT_CONTEXT.md
-
-## ENGINE
-
-### Shared contract (do not rename these types)
-=======
 # FRONTEND
 
 Assumption: the scaffold prompt sets the stack to React + TypeScript with Vite, Tailwind CSS, Recharts, and Zustand. Versions are not specified. The visual style is not sure; verify it against the approved design brief before adding styling beyond the listed layout and risk colors.
@@ -24,7 +17,6 @@ src/
 Screens: **Upload** is the file-selection screen; **Dashboard** is the analysis-results screen.
 
 Use these shared contract types exactly; if they change later, update this file first:
->>>>>>> 1cd03b8b01ac6adfdb45b8e1fcb401dd0bfdff84
 
 ```ts
 export type ThreatType = 'BRUTE_FORCE' | 'SQLI' | 'TRAVERSAL' | 'SCANNER_UA' | 'SENSITIVE_PROBE';
@@ -40,15 +32,6 @@ export interface ParseResult { session: ParsedLogSession; events: ThreatEvent[];
 export const WEIGHTS: Record<ThreatType, number> = { SENSITIVE_PROBE: 30, SQLI: 25, TRAVERSAL: 25, SCANNER_UA: 15, BRUTE_FORCE: 15 };
 ```
 
-<<<<<<< HEAD
-### Pipeline
-
-Every log line goes through: parse -> decode -> run 4 rules -> count per IP -> score 0-100 -> blocklist.
-
-### Files (all under src/engine/)
-
--
-=======
 Risk colors: CRITICAL `red-500`, HIGH `orange-500`, MEDIUM `yellow-400`, LOW `green-500`.
 
 No network calls of any kind: no fetch to external hosts, no CDN fonts, and no analytics. Attacker-controlled path, user-agent, query, and referer values are always rendered as plain text, never as HTML. Never use `dangerouslySetInnerHTML`.
@@ -102,4 +85,3 @@ export const WEIGHTS: Record<ThreatType, number> = { SENSITIVE_PROBE: 30, SQLI: 
 Keep these contract type and field names unchanged. Pipeline files: `src/engine/parseLine.ts` parses lines; `src/engine/decode.ts` decodes; `src/engine/rules/{bruteForce,injection,userAgent,sensitiveFile}.ts` check threats; `src/engine/runRules.ts` runs checks; `src/engine/score.ts` scores risk; `src/engine/blocklist.ts` formats blocklist output; `src/engine/analyze.ts` orchestrates. Put tests in `tests/*.test.ts`.
 
 Use pure functions: no DOM, network, or global mutable state. Run in a Web Worker. Never use `eval` or `new Function`. Logs are attacker-controlled: cap each line at 8,192 characters before any regex, and use only linear-time regexes with no nested quantifiers to prevent ReDoS.
->>>>>>> 1cd03b8b01ac6adfdb45b8e1fcb401dd0bfdff84
