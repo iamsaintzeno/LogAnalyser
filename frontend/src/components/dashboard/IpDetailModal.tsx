@@ -272,6 +272,9 @@ export function IpDetailModal({ ip, onClose }: IpDetailModalProps) {
             <p className="mt-3 break-all text-sm text-slate-600">
               First seen {formatLocalDateTime(attacker.firstSeen)} · Last seen {formatLocalDateTime(attacker.lastSeen)}
             </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Times shown in {Intl.DateTimeFormat().resolvedOptions().timeZone || 'your local timezone'}.
+            </p>
           </div>
           <ScoreRing rating={attacker.rating} score={attacker.score} />
           <button
@@ -361,6 +364,7 @@ export function IpDetailModal({ ip, onClose }: IpDetailModalProps) {
                     <tr>
                       <th className="p-2">Time</th><th className="p-2">Type</th><th className="p-2">Method</th>
                       <th className="p-2">Path + query</th><th className="p-2">Status</th><th className="p-2">User agent</th>
+                      <th className="p-2">Referer</th>
                       <th className="p-2">Evidence</th><th className="p-2">Action</th>
                     </tr>
                   </thead>
@@ -379,6 +383,7 @@ export function IpDetailModal({ ip, onClose }: IpDetailModalProps) {
                           <td className="max-w-52 break-all p-2" title={pathQuery}>{truncate(pathQuery)}</td>
                           <td className="p-2">{entry?.status ?? ''}</td>
                           <td className="max-w-40 break-all p-2" title={entry?.ua ?? ''}>{truncate(entry?.ua ?? '')}</td>
+                          <td className="max-w-40 break-all p-2" title={entry?.referer ?? ''}>{truncate(entry?.referer ?? '')}</td>
                           <td className="max-w-56 break-all p-2">{event.evidence}</td>
                           <td className="p-2">
                             <button

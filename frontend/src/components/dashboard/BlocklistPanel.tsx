@@ -32,7 +32,7 @@ function makeRule(candidate: Candidate, format: BlocklistFormat): BlocklistRule 
   };
 }
 
-export function BlocklistPanel() {
+export function BlocklistPanel({ disabled = false }: { disabled?: boolean }) {
   const summaries = useAnalyzerStore((state) => state.result?.session.summaries ?? []);
   const manualRules = useAnalyzerStore((state) => state.blocklist);
   const [minScore, setMinScore] = useState(60);
@@ -57,8 +57,9 @@ export function BlocklistPanel() {
     }
     return [...byIP.values()].sort((left, right) => right.score - left.score || left.ip.localeCompare(right.ip));
   }, [manualRules, minScore, summaries]);
+  const availableCandidates = disabled ? [] : candidates;
 
-  const selectedCandidates = candidates.filter((candidate) => !excludedIPs.has(candidate.ip));
+  const selectedCandidates = availableCandidates.filter((candidate) => !excludedIPs.has(candidate.ip));
   const rules = selectedCandidates.map((candidate) => makeRule(candidate, format));
   const output = generateBlocklist(rules, format, minScore);
   const lines = output.split('\n');
@@ -112,6 +113,8 @@ export function BlocklistPanel() {
         </div>
       </div>
 
+      {disabled && <p className="text-sm text-slate-600">Blocklist is disabled because no threats were detected.</p>}
+
       <div role="tablist" aria-label="Blocklist format" className="flex flex-wrap gap-2">
         {FORMATS.map((item) => (
           <button
@@ -119,6 +122,7 @@ export function BlocklistPanel() {
             className={`rounded border px-3 py-2 text-sm ${format === item.format ? 'border-cyan-600 bg-cyan-50 text-cyan-900' : 'border-slate-300'}`}
             key={item.format}
             onClick={() => setFormat(item.format)}
+            disabled={disabled}
             role="tab"
             type="button"
           >
@@ -141,20 +145,22 @@ export function BlocklistPanel() {
           step={5}
           type="range"
           value={minScore}
+          disabled={disabled}
         />
       </label>
 
-      {candidates.length === 0 ? (
+      {availableCandidates.length === 0 ? (
         <EmptyState message="No IPs meet this risk score." />
       ) : (
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">Override blocked IPs</legend>
           <div className="max-h-52 space-y-1 overflow-y-auto rounded border border-slate-200 p-3">
-            {candidates.map((candidate) => (
+            {availableCandidates.map((candidate) => (
               <label className="flex items-center gap-2 text-sm" key={candidate.ip}>
                 <input
                   checked={!excludedIPs.has(candidate.ip)}
                   onChange={() => toggleCandidate(candidate.ip)}
+                  disabled={disabled}
                   type="checkbox"
                 />
                 <code className="break-all">{candidate.ip}</code>

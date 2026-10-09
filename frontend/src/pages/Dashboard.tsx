@@ -31,6 +31,13 @@ export function Dashboard() {
   return (
     <section className="space-y-4">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <p className="text-sm text-slate-600">Times shown in {Intl.DateTimeFormat().resolvedOptions().timeZone || 'your local timezone'}.</p>
+      {result.session.threatCount === 0 && (
+        <div className="rounded-lg border border-green-300 bg-green-50 p-5 text-green-950" role="status">
+          <h2 className="text-xl font-semibold">No attacks detected</h2>
+          <p className="mt-1">This log has no flagged threats. You can still review the log summary below.</p>
+        </div>
+      )}
       {result && <SummaryCards result={result} />}
       <FilterBar
         firstTimestamp={firstTimestamp}
@@ -51,7 +58,7 @@ export function Dashboard() {
           <AttackerTable rows={summaries} onRowClick={setSelectedIP} />
         </section>
       )}
-      {result && <BlocklistPanel />}
+      {result && <BlocklistPanel disabled={result.session.threatCount === 0} />}
       {selectedIP && <IpDetailModal ip={selectedIP} onClose={() => setSelectedIP(null)} />}
       <p>Analysis results will be shown here.</p>
       <p>

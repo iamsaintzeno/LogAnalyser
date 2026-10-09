@@ -11,6 +11,17 @@ const THREAT_TYPES: ThreatType[] = [
   'SENSITIVE_PROBE',
 ];
 
+export function needsThirtyMinuteBuckets(buckets: TimelineBucket[]): boolean {
+  if (buckets.length < 2) return false;
+  let firstTime = buckets[0].t;
+  let lastTime = buckets[0].t;
+  for (const bucket of buckets) {
+    firstTime = Math.min(firstTime, bucket.t);
+    lastTime = Math.max(lastTime, bucket.t);
+  }
+  return Math.floor((lastTime - firstTime) / FIVE_MINUTES) + 1 > MAX_BUCKETS;
+}
+
 function emptyCounts(): Record<ThreatType, number> {
   return {
     BRUTE_FORCE: 0,

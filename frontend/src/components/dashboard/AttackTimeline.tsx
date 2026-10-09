@@ -13,7 +13,7 @@ import {
   type TooltipValueType,
 } from 'recharts';
 import type { ThreatType, TimelineBucket } from '../../contracts';
-import { fillGaps } from '../../lib/timeline';
+import { fillGaps, needsThirtyMinuteBuckets } from '../../lib/timeline';
 
 const FIVE_MINUTES = 5 * 60_000;
 const DAY = 24 * 60 * 60_000;
@@ -93,6 +93,7 @@ export function AttackTimeline({ buckets, onBucketClick }: AttackTimelineProps) 
   if (buckets.length === 0) return <EmptyState />;
 
   const filledBuckets = fillGaps(buckets);
+  const mergedToThirtyMinutes = needsThirtyMinuteBuckets(buckets);
   const totals = filledBuckets.map(eventTotal);
   const mean = totals.reduce((sum, value) => sum + value, 0) / totals.length;
   const variance = totals.reduce((sum, value) => sum + (value - mean) ** 2, 0) / totals.length;
@@ -118,6 +119,11 @@ export function AttackTimeline({ buckets, onBucketClick }: AttackTimelineProps) 
 
   return (
     <section aria-label="Attack timeline" className="space-y-3">
+      {mergedToThirtyMinutes && (
+        <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950" role="status">
+          This timeline spans more than 2,000 five-minute buckets, so it is merged to 30-minute buckets for display.
+        </p>
+      )}
       <div aria-label="Toggle threat types" className="flex flex-wrap gap-x-4 gap-y-2" role="group">
         {THREAT_SERIES.map(({ type, label, color }) => (
           <button

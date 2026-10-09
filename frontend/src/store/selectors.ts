@@ -24,14 +24,18 @@ function isEventMatch(event: ThreatEvent, filters: FilterState): boolean {
   return true;
 }
 
-export function selectSummariesFiltered(events: ThreatEvent[], filters: FilterState): AttackerIPSummary[] {
+export function selectSummariesFiltered(
+  events: ThreatEvent[],
+  filters: FilterState,
+  sourceSummaries: AttackerIPSummary[] = mockResult.session.summaries,
+): AttackerIPSummary[] {
   const hasEventFilters = filters.types.length > 0 ||
     (!hasInvalidTimeRange(filters) && (filters.from !== null || filters.to !== null));
   const matchingIPs = hasEventFilters
     ? new Set(events.filter((event) => isEventMatch(event, filters)).map((event) => event.ip))
     : null;
 
-  return mockResult.session.summaries.filter((summary) => {
+  return sourceSummaries.filter((summary) => {
     if (summary.score < filters.minScore) return false;
     if (filters.ipQuery && !summary.ip.toLowerCase().startsWith(filters.ipQuery.trim().toLowerCase())) return false;
     return matchingIPs === null || matchingIPs.has(summary.ip);
@@ -42,12 +46,13 @@ export function selectTimeline(
   events: ThreatEvent[],
   filters: FilterState,
   bucketMs = 300_000,
+  sourceSummaries: AttackerIPSummary[] = mockResult.session.summaries,
 ): TimelineBucket[] {
   const buckets = new Map<number, TimelineBucket>();
 
   for (const event of events) {
     if (!isEventMatch(event, filters)) continue;
-    const summary = mockResult.session.summaries.find((item) => item.ip === event.ip);
+    const summary = sourceSummaries.find((item) => item.ip === event.ip);
     if (!summary || summary.score < filters.minScore) continue;
 
     const t = Math.floor(event.ts / bucketMs) * bucketMs;
@@ -78,10 +83,12 @@ export function selectThreatTypeCounts(events: ThreatEvent[]): Record<ThreatType
 
 export function useFilteredData() {
   const filters = useAnalyzerStore((state) => state.filters);
-  const events = useAnalyzerStore((state) => state.result?.events ?? mockResult.events);
+  const result = useAnalyzerStore((state) => state.result);
+  const events = result?.events ?? mockResult.events;
+  const sourceSummaries = result?.session.summaries ?? mockResult.session.summaries;
 
   return {
-    summaries: selectSummariesFiltered(events, filters),
-    timeline: selectTimeline(events, filters),
+    summaries: selectSummariesFiltered(events, filters, sourceSummaries),
+    timeline: selectTimeline(events, filters, 300_000, sourceSummaries),
   };
 }
