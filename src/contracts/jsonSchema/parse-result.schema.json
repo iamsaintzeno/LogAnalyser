@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ParseResult",
+  "type": "object",
+  "required": ["session", "events", "entries"],
+  "properties": {
+    "session": { "$ref": "#/definitions/ParsedLogSession" },
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/ThreatEvent" }
+    },
+    "entries": {
+      "type": "array",
+      "maxItems": 20000,
+      "items": { "$ref": "#/definitions/LogEntry" }
+    }
+  },
+  "definitions": {
+    "ThreatType": {
+      "type": "string",
+      "enum": ["BRUTE_FORCE", "SQLI", "TRAVERSAL", "SCANNER_UA", "SENSITIVE_PROBE"]
+    },
+    "RiskRating": {
+      "type": "string",
+      "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+    },
+    "LogEntry": {
+      "type": "object",
+      "required": ["id", "ip", "ts", "method", "path", "query", "proto", "status", "bytes", "referer", "ua", "raw"],
+      "properties": {
+        "id": { "type": "number" },
+        "ip": { "type": "string" },
+        "ts": { "type": "number" },
+        "method": { "type": "string" },
+        "path": { "type": "string" },
+        "query": { "type": "string" },
+        "proto": { "type": "string" },
+        "status": { "type": "number" },
+        "bytes": { "type": "number" },
+        "referer": { "type": "string" },
+        "ua": { "type": "string" },
+        "raw": { "type": "string" }
+      }
+    },
+    "ThreatEvent": {
+      "type": "object",
+      "required": ["id", "entryId", "ip", "ts", "type", "ruleId", "severity", "evidence"],
+      "properties": {
+        "id": { "type": "string" },
+        "entryId": { "type": "number" },
+        "ip": { "type": "string" },
+        "ts": { "type": "number" },
+        "type": { "$ref": "#/definitions/ThreatType" },
+        "ruleId": { "type": "string" },
+        "severity": { "type": "integer", "enum": [1, 2, 3] },
+        "evidence": { "type": "string" }
+      }
+    },
+    "ThreatCounts": {
+      "type": "object",
+      "required": ["BRUTE_FORCE", "SQLI", "TRAVERSAL", "SCANNER_UA", "SENSITIVE_PROBE"],
+      "properties": {
+        "BRUTE_FORCE": { "type": "number" },
+        "SQLI": { "type": "number" },
+        "TRAVERSAL": { "type": "number" },
+        "SCANNER_UA": { "type": "number" },
+        "SENSITIVE_PROBE": { "type": "number" }
+      }
+    },
+    "AttackerIPSummary": {
+      "type": "object",
+      "required": ["ip", "totalHits", "threatHits", "byType", "mainThreat", "score", "rating", "firstSeen", "lastSeen"],
+      "properties": {
+        "ip": { "type": "string" },
+        "totalHits": { "type": "number" },
+        "threatHits": { "type": "number" },
+        "byType": { "$ref": "#/definitions/ThreatCounts" },
+        "mainThreat": { "$ref": "#/definitions/ThreatType" },
+        "score": { "type": "number" },
+        "rating": { "$ref": "#/definitions/RiskRating" },
+        "firstSeen": { "type": "number" },
+        "lastSeen": { "type": "number" }
+      }
+    },
+    "TimelineBucket": {
+      "type": "object",
+      "required": ["t", "total", "byType"],
+      "properties": {
+        "t": { "type": "number" },
+        "total": { "type": "number" },
+        "byType": { "$ref": "#/definitions/ThreatCounts" }
+      }
+    },
+    "ParsedLogSession": {
+      "type": "object",
+      "required": ["id", "fileName", "fileSize", "createdAt", "totalLines", "parsedLines", "skippedLines", "threatCount", "durationMs", "summaries", "timeline"],
+      "properties": {
+        "id": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileSize": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "totalLines": { "type": "number" },
+        "parsedLines": { "type": "number" },
+        "skippedLines": { "type": "number" },
+        "threatCount": { "type": "number" },
+        "durationMs": { "type": "number" },
+        "summaries": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/AttackerIPSummary" }
+        },
+        "timeline": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TimelineBucket" }
+        }
+      }
+    }
+  }
+}
