@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "mock:log": "node scripts/generate-mock-log.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
