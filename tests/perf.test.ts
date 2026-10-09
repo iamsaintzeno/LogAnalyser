@@ -32,6 +32,7 @@ function gen(n: number): LogEntry[] {
 
 const BUDGET_MS = Number(process.env.PERF_BUDGET_MS) || 1500;
 
+
 describe('performance', () => {
   it('100,000 entries analysed in under 1.5 s', () => {
     const entries = gen(100000);
@@ -43,4 +44,5 @@ describe('performance', () => {
     expect(ms).toBeLessThan(BUDGET_MS);
   });
 });
+
 
