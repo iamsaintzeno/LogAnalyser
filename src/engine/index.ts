@@ -13,3 +13,4 @@ export * from './runRules';
 export * from './aggregate';
 export * from './analyze';
 export * from './rules/sensitiveFile';
+export * from './blocklist';
