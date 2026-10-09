@@ -1,0 +1,14 @@
+{
+  "name": "loganalyser-engine",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "zustand": "^5.0.15"
+  }
+}
