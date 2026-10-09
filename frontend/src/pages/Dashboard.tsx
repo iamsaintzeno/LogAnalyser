@@ -5,6 +5,7 @@ import { AttackTimeline } from '../components/dashboard/AttackTimeline';
 import { AttackerTable } from '../components/dashboard/AttackerTable';
 import { FilterBar } from '../components/dashboard/FilterBar';
 import { IpDetailModal } from '../components/dashboard/IpDetailModal';
+import { BlocklistPanel } from '../components/dashboard/BlocklistPanel';
 import { selectThreatTypeCounts, useFilteredData } from '../store/selectors';
 
 export function Dashboard() {
@@ -50,6 +51,7 @@ export function Dashboard() {
           <AttackerTable rows={summaries} onRowClick={setSelectedIP} />
         </section>
       )}
+      {result && <BlocklistPanel />}
       {selectedIP && <IpDetailModal ip={selectedIP} onClose={() => setSelectedIP(null)} />}
       <p>Analysis results will be shown here.</p>
       <p>
