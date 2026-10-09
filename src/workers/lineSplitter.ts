@@ -8,6 +8,7 @@ export interface LineSplitterState {
 export interface LineSplitResult {
   lines: string[];
   lineOffsets: number[];
+  skippedOffsets: number[];
   state: LineSplitterState;
   skipped: number;
 }
@@ -15,6 +16,7 @@ export interface LineSplitResult {
 export interface FinishedLines {
   lines: string[];
   lineOffsets: number[];
+  skippedOffsets: number[];
   skipped: number;
 }
 
@@ -25,6 +27,7 @@ export function splitChunk(
 ): LineSplitResult {
   const lines: string[] = [];
   const lineOffsets: number[] = [];
+  const skippedOffsets: number[] = [];
   let skipped = 0;
   let completedLineCount = 0;
   let carry = state.carry;
@@ -37,6 +40,7 @@ export function splitChunk(
 
     if (discardingLine) {
       skipped += 1;
+      skippedOffsets.push(completedLineCount);
       discardingLine = false;
     } else {
       let line = carry + segment;
@@ -44,6 +48,7 @@ export function splitChunk(
 
       if (line.length > maxLineLength) {
         skipped += 1;
+        skippedOffsets.push(completedLineCount);
       } else {
         lines.push(line);
         lineOffsets.push(completedLineCount);
@@ -70,6 +75,7 @@ export function splitChunk(
   return {
     lines,
     lineOffsets,
+    skippedOffsets,
     state: { carry, discardingLine },
     skipped,
   };
@@ -79,10 +85,16 @@ export function finishLines(
   state: LineSplitterState,
   maxLineLength = MAX_LINE_LENGTH,
 ): FinishedLines {
-  if (state.discardingLine) return { lines: [], lineOffsets: [], skipped: 1 };
-  if (state.carry.length === 0) return { lines: [], lineOffsets: [], skipped: 0 };
+  if (state.discardingLine) {
+    return { lines: [], lineOffsets: [], skippedOffsets: [0], skipped: 1 };
+  }
+  if (state.carry.length === 0) {
+    return { lines: [], lineOffsets: [], skippedOffsets: [], skipped: 0 };
+  }
 
-  if (state.carry.length > maxLineLength) return { lines: [], lineOffsets: [], skipped: 1 };
+  if (state.carry.length > maxLineLength) {
+    return { lines: [], lineOffsets: [], skippedOffsets: [0], skipped: 1 };
+  }
 
-  return { lines: [state.carry], lineOffsets: [0], skipped: 0 };
+  return { lines: [state.carry], lineOffsets: [0], skippedOffsets: [], skipped: 0 };
 }

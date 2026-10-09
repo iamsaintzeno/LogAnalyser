@@ -1,5 +1,9 @@
 import type { LogEntry, ParseResult, RuleOverride } from '../contracts/index.ts';
 import {
+  createAnalyzer as createEngineAnalyzer,
+  parseLine,
+} from '../engine/index.ts';
+import {
   CONTRACT_VERSION,
   type WorkerRequest,
   type WorkerResponse,
@@ -10,7 +14,6 @@ import {
   type LineSplitterState,
 } from './lineSplitter.ts';
 
-// The engine is injected until its production exports are available.
 const MAX_FILE_SIZE = 200 * 1024 * 1024;
 const BATCH_SIZE = 2_000;
 const YIELD_EVERY_LINES = 20_000;
@@ -20,6 +23,7 @@ export interface AnalysisMetadata {
   fileName: string;
   fileSize: number;
   totalLines: number;
+  parsedLines: number;
   skippedLines: number;
   startedAt: number;
 }
@@ -39,6 +43,31 @@ export interface ParserWorkerScope {
   postMessage(message: WorkerResponse): void;
 }
 
+export function createParserEngine(): ParserEngine {
+  return {
+    parseLine,
+    createAnalyzer({ overrides, allowIps }) {
+      const analyzer = createEngineAnalyzer(overrides, new Set(allowIps));
+      return {
+        push(entries) {
+          analyzer.push(entries);
+        },
+        finish(metadata) {
+          return analyzer.finish({
+            fileName: metadata.fileName,
+            fileSize: metadata.fileSize,
+            totalLines: metadata.totalLines,
+            parsedLines: metadata.parsedLines,
+            skippedLines: metadata.skippedLines,
+            createdAt: metadata.startedAt,
+            durationMs: Date.now() - metadata.startedAt,
+          });
+        },
+      };
+    },
+  };
+}
+
 interface ActiveAnalysis {
   requestId: string;
   cancelled: boolean;
@@ -47,7 +76,7 @@ interface ActiveAnalysis {
 }
 
 interface AnalysisInput {
-  stream: ReadableStream<Uint8Array>;
+  createStream: () => ReadableStream<Uint8Array>;
   fileName: string;
   fileSize: number;
   overrides: RuleOverride[];
@@ -127,14 +156,14 @@ export function attachParserWorker(scope: ParserWorkerScope, engine: ParserEngin
     const startedAt = Date.now();
     const input: AnalysisInput = request.type === 'ANALYZE_FILE'
       ? {
-        stream: request.file.stream(),
+        createStream: () => request.file.stream(),
         fileName: request.file.name,
         fileSize: request.file.size,
         overrides: request.overrides,
         allowIps: request.allowIps,
       }
       : {
-        stream: new Blob([request.text]).stream(),
+        createStream: () => new Blob([request.text]).stream(),
         fileName: request.fileName,
         fileSize: new TextEncoder().encode(request.text).byteLength,
         overrides: request.overrides,
@@ -150,66 +179,99 @@ export function attachParserWorker(scope: ParserWorkerScope, engine: ParserEngin
       return;
     }
 
-    const reader = input.stream.getReader();
-    analysis.reader = reader;
-    const decoder = new TextDecoder('utf-8');
-    const analyzer = engine.createAnalyzer({
-      overrides: input.overrides,
-      allowIps: input.allowIps,
-    });
-    const batch: LogEntry[] = [];
-    let splitterState: LineSplitterState = { carry: '', discardingLine: false };
-    let lineNo = 1;
-    let totalLines = 0;
-    let parsedLines = 0;
-    let skippedLines = 0;
-    let bytesRead = 0;
-    let lastProgressAt: number | undefined;
-    let isFirstChunk = true;
-
-    const processLines = async (
-      lines: string[],
-      lineOffsets: number[],
-      skipped: number,
-    ): Promise<void> => {
-      skippedLines += skipped;
-      const firstLineNo = lineNo;
-      const lineCount = skipped + lines.length;
-      totalLines += lineCount;
-      lineNo += lineCount;
-      let nextYieldAt = Math.ceil(firstLineNo / YIELD_EVERY_LINES) * YIELD_EVERY_LINES;
-
-      for (let index = 0; index < lines.length; index += 1) {
-        if (analysis.cancelled) return;
-        const currentLineNo = firstLineNo + lineOffsets[index];
-        const entry = engine.parseLine(lines[index], currentLineNo);
-
-        if (entry === null) {
-          skippedLines += 1;
-        } else {
-          parsedLines += 1;
-          batch.push(entry);
-          if (batch.length === BATCH_SIZE) {
-            analyzer.push(batch.slice());
-            batch.length = 0;
-          }
-        }
-
-        if (currentLineNo >= nextYieldAt) {
-          await new Promise<void>((resolve) => setTimeout(resolve, 0));
-          nextYieldAt += YIELD_EVERY_LINES;
-        }
-      }
-    };
-
+    let reader: ReadableStreamDefaultReader<Uint8Array>;
     try {
+      reader = input.createStream().getReader();
+    } catch (error) {
+      postError(analysis, 'READ_FAILED', errorMessage(error));
+      return;
+    }
+    analysis.reader = reader;
+    try {
+      const decoder = new TextDecoder('utf-8', { ignoreBOM: true });
+      const analyzer = engine.createAnalyzer({
+        overrides: input.overrides,
+        allowIps: input.allowIps,
+      });
+      const batch: LogEntry[] = [];
+      let splitterState: LineSplitterState = { carry: '', discardingLine: false };
+      let lineNo = 1;
+      let totalLines = 0;
+      let parsedLines = 0;
+      let skippedLines = 0;
+      let bytesRead = 0;
+      let lastProgressAt: number | undefined;
+      let isFirstChunk = true;
+      const stripInitialBom = (text: string): string => {
+        if (!isFirstChunk || text.length === 0) return text;
+        isFirstChunk = false;
+        return text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+      };
+
+      const processLines = async (
+        lines: string[],
+        lineOffsets: number[],
+        skippedOffsets: number[],
+      ): Promise<void> => {
+        const firstLineNo = lineNo;
+        const lineCount = lines.length + skippedOffsets.length;
+        totalLines += lineCount;
+        lineNo += lineCount;
+        let nextYieldAt = Math.ceil(firstLineNo / YIELD_EVERY_LINES) * YIELD_EVERY_LINES;
+        let lineIndex = 0;
+        let skippedIndex = 0;
+
+        while (lineIndex < lines.length || skippedIndex < skippedOffsets.length) {
+          if (analysis.cancelled) return;
+          const isSkippedLine = skippedIndex < skippedOffsets.length
+            && (
+              lineIndex >= lines.length
+              || skippedOffsets[skippedIndex] < lineOffsets[lineIndex]
+            );
+          const currentLineNo = firstLineNo + (
+            isSkippedLine ? skippedOffsets[skippedIndex] : lineOffsets[lineIndex]
+          );
+
+          if (isSkippedLine) {
+            skippedLines += 1;
+          } else {
+            const entry = engine.parseLine(lines[lineIndex], currentLineNo);
+            if (entry === null) {
+              skippedLines += 1;
+            } else {
+              parsedLines += 1;
+              batch.push(entry);
+              if (batch.length === BATCH_SIZE) {
+                analyzer.push(batch.slice());
+                batch.length = 0;
+              }
+            }
+          }
+
+          if (currentLineNo >= nextYieldAt) {
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            nextYieldAt += YIELD_EVERY_LINES;
+          }
+
+          if (isSkippedLine) skippedIndex += 1;
+          else lineIndex += 1;
+        }
+      };
+
       while (true) {
         if (analysis.cancelled) {
           postError(analysis, 'CANCELLED', 'Analysis cancelled');
           return;
         }
 
-        const { done, value } = await reader.read();
+        let chunk: ReadableStreamReadResult<Uint8Array>;
+        try {
+          chunk = await reader.read();
+        } catch (error) {
+          postError(analysis, 'READ_FAILED', errorMessage(error));
+          return;
+        }
+        const { done, value } = chunk;
         if (analysis.cancelled) {
           postError(analysis, 'CANCELLED', 'Analysis cancelled');
           return;
@@ -217,15 +279,11 @@ export function attachParserWorker(scope: ParserWorkerScope, engine: ParserEngin
         if (done) break;
 
         bytesRead += value.byteLength;
-        let text = decoder.decode(value, { stream: true });
-        if (isFirstChunk) {
-          isFirstChunk = false;
-          if (text.startsWith('\uFEFF')) text = text.slice(1);
-        }
+        const text = stripInitialBom(decoder.decode(value, { stream: true }));
 
         const split = splitChunk(text, splitterState);
         splitterState = split.state;
-        await processLines(split.lines, split.lineOffsets, split.skipped);
+        await processLines(split.lines, split.lineOffsets, split.skippedOffsets);
         lastProgressAt = sendProgress(
           analysis,
           Date.now(),
@@ -242,15 +300,15 @@ export function attachParserWorker(scope: ParserWorkerScope, engine: ParserEngin
         return;
       }
 
-      const finalText = decoder.decode();
+      const finalText = stripInitialBom(decoder.decode());
       if (finalText.length > 0) {
         const split = splitChunk(finalText, splitterState);
         splitterState = split.state;
-        await processLines(split.lines, split.lineOffsets, split.skipped);
+        await processLines(split.lines, split.lineOffsets, split.skippedOffsets);
       }
 
       const finalLines = finishLines(splitterState);
-      await processLines(finalLines.lines, finalLines.lineOffsets, finalLines.skipped);
+      await processLines(finalLines.lines, finalLines.lineOffsets, finalLines.skippedOffsets);
       if (analysis.cancelled) {
         postError(analysis, 'CANCELLED', 'Analysis cancelled');
         return;
@@ -267,6 +325,7 @@ export function attachParserWorker(scope: ParserWorkerScope, engine: ParserEngin
         fileName: input.fileName,
         fileSize: input.fileSize,
         totalLines,
+        parsedLines,
         skippedLines,
         startedAt,
       });
@@ -292,11 +351,16 @@ export function attachParserWorker(scope: ParserWorkerScope, engine: ParserEngin
     }
   };
 
+  const pendingRequestIds = new Set<string>();
+
   const handleRequest = (request: WorkerRequest): void => {
     if (request.type === 'CANCEL') {
       if (active?.requestId === request.requestId) requestCancellation(active);
       return;
     }
+
+    if (pendingRequestIds.has(request.requestId)) return;
+    pendingRequestIds.add(request.requestId);
 
     if (active) requestCancellation(active);
 
@@ -320,6 +384,7 @@ export function attachParserWorker(scope: ParserWorkerScope, engine: ParserEngin
           postError(analysis, 'ENGINE_CRASH', errorMessage(error));
         }
       } finally {
+        pendingRequestIds.delete(analysis.requestId);
         if (active === analysis) active = undefined;
       }
     });
