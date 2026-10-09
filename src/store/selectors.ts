@@ -73,10 +73,21 @@ export function selectFilteredSummaries(
 }
 
 /**
- * Filter timeline buckets using only information represented by each bucket.
+ * Filter timeline buckets using the information available in each bucket.
  *
- * IP and risk-score filtering are intentionally not supported because the
- * aggregated buckets do not contain per-IP or per-risk information.
+ * Engine contract:
+ * - total counts threat events across all types in a five-minute bucket.
+ * - byType[type] counts threat events of that specific type.
+ * - total equals the sum of all byType counts.
+ * - Empty buckets are not emitted by the engine.
+ *
+ * When threat-type filters are active, byType retains only selected types
+ * and total becomes the sum of their counts. This is the filtered chart
+ * total, not the original bucket total.
+ *
+ * The original timeline and bucket objects are never mutated.
+ * IP and score filtering require event-level data and cannot be applied
+ * accurately using aggregated timeline buckets alone.
  */
 export function selectFilteredTimeline(
   timeline: TimelineBucket[],

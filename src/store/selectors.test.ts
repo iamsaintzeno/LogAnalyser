@@ -143,8 +143,37 @@ describe('selectFilteredTimeline', () => {
 
     expect(timeline).toEqual(original);
   });
-});
 
+  it('recalculates total from selected threat types only', () => {
+    const result = selectFilteredTimeline(timeline, {
+      ...defaultFilters,
+      types: ['SQLI', 'TRAVERSAL'],
+    });
+
+    expect(result[0].byType).toEqual({
+      BRUTE_FORCE: 0,
+      SQLI: 3,
+      TRAVERSAL: 1,
+      SCANNER_UA: 0,
+      SENSITIVE_PROBE: 0,
+    });
+
+    expect(result[0].total).toBe(4);
+  });
+
+  it('preserves original totals and type counts when filtering', () => {
+    const original = structuredClone(timeline);
+
+    selectFilteredTimeline(timeline, {
+      ...defaultFilters,
+      types: ['SQLI'],
+    });
+
+    expect(timeline).toEqual(original);
+    expect(timeline[0].total).toBe(10);
+    expect(timeline[1].total).toBe(20);
+  });
+});
 describe('selectDashboardStatistics', () => {
   it('calculates critical IP count and peak attack time', () => {
     const critical = createSummary('192.168.1.10', 90, 'CRITICAL');
