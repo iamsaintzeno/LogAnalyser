@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { PrivacyBadge } from './PrivacyBadge';
 import { useAnalyzerStore } from '../../store/useAnalyzerStore';
 
 interface AppShellProps {
@@ -16,9 +17,7 @@ export function AppShell({ children }: AppShellProps) {
             <p className="text-lg font-semibold">LogGuard</p>
             <p className="text-sm text-slate-600">Your logs never leave this browser</p>
           </div>
-          <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
-            <span aria-hidden="true">● </span>Offline-safe
-          </span>
+          <PrivacyBadge />
         </div>
       </header>
 

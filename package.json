@@ -1,7 +1,10 @@
 {
   "scripts": {
+    "build": "npm run build --prefix frontend",
+    "preview": "npm run --prefix frontend preview --",
     "test": "vitest run --exclude frontend/**",
-    "mock:log": "node scripts/generate-mock-log.mjs"
+    "mock:log": "node scripts/generate-mock-log.mjs",
+    "check:offline": "node scripts/check-offline.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
