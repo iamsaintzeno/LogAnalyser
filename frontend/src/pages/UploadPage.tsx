@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { LogDropzone } from '../components/upload/LogDropzone';
 import { mockResult } from '../mock/mockResult';
 import { useAnalyzerStore } from '../store/useAnalyzerStore';
+import { useLogAnalysis } from '../hooks/useLogAnalysis';
 
 const SIMULATED_TOTAL_BYTES = 3000;
 const SIMULATION_DURATION_MS = 3000;
 
-function ParseProgress({ onCancel }: { onCancel: () => void }) {
+function ParseProgress({ onCancel, skipped }: { onCancel: () => void; skipped: number }) {
   const progress = useAnalyzerStore((state) => state.progress);
   const [announcedProgress, setAnnouncedProgress] = useState(progress);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -50,6 +51,7 @@ function ParseProgress({ onCancel }: { onCancel: () => void }) {
       <p aria-live="polite" className="text-sm">
         Parsed {announcedProgress.lines} lines - {announcedPercent}%
       </p>
+      <p className="text-sm text-slate-600">Skipped {skipped} lines</p>
       <p className="text-sm text-slate-600">Elapsed {elapsedSeconds} seconds</p>
       <button
         className="rounded-md border border-slate-300 px-4 py-2 font-medium hover:bg-slate-50"
@@ -81,7 +83,15 @@ function ErrorMessage({ message, onTryAgain }: { message: string; onTryAgain: ()
   );
 }
 
-function IdleUpload({ onSimulateParsing }: { onSimulateParsing: () => void }) {
+function IdleUpload({
+  onSimulateParsing,
+  onFile,
+  parserReady,
+}: {
+  onSimulateParsing: () => void;
+  onFile: (file: File) => void;
+  parserReady: boolean;
+}) {
   const setResult = useAnalyzerStore((state) => state.setResult);
 
   return (
@@ -106,9 +116,8 @@ function IdleUpload({ onSimulateParsing }: { onSimulateParsing: () => void }) {
       </div>
 
       <LogDropzone
-        onFile={() => {
-          // The parser is not part of this step.
-        }}
+        disabled={!parserReady}
+        onFile={onFile}
         onDemo={onSimulateParsing}
       />
 
@@ -122,6 +131,8 @@ function IdleUpload({ onSimulateParsing }: { onSimulateParsing: () => void }) {
         </button>
       )}
 
+      {!parserReady && <p className="text-sm text-slate-600" role="status">Starting the local parser…</p>}
+
       <button
         className="rounded-md border border-slate-300 px-4 py-2 font-medium hover:bg-slate-50"
         onClick={() => setResult(mockResult)}
@@ -134,6 +145,7 @@ function IdleUpload({ onSimulateParsing }: { onSimulateParsing: () => void }) {
 }
 
 export function UploadPage() {
+  const { analyzeFile, cancel, ready: parserReady, skipped } = useLogAnalysis();
   const status = useAnalyzerStore((state) => state.status);
   const error = useAnalyzerStore((state) => state.error);
   const reset = useAnalyzerStore((state) => state.reset);
@@ -175,7 +187,7 @@ export function UploadPage() {
   }
 
   if (status === 'parsing') {
-    return <ParseProgress onCancel={cancelParsing} />;
+    return <ParseProgress onCancel={() => { cancelParsing(); cancel(); }} skipped={skipped} />;
   }
 
   if (status === 'error') {
@@ -184,5 +196,5 @@ export function UploadPage() {
 
   if (status === 'done') return null;
 
-  return <IdleUpload onSimulateParsing={simulateParsing} />;
+  return <IdleUpload onFile={analyzeFile} onSimulateParsing={simulateParsing} parserReady={parserReady} />;
 }

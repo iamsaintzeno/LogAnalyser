@@ -104,6 +104,9 @@ export function AttackTimeline({ buckets, onBucketClick }: AttackTimelineProps) 
     eventTotal: totals[index],
     isSpike: totals[index] > spikeThreshold,
   }));
+  const peakBucket = chartData.reduce((peak, bucket) =>
+    bucket.eventTotal > peak.eventTotal ? bucket : peak,
+  chartData[0]);
   const span = chartData[chartData.length - 1].t - chartData[0].t + FIVE_MINUTES;
   const includeDate = span > DAY;
   const scroll = chartData.length > 200;
@@ -119,6 +122,7 @@ export function AttackTimeline({ buckets, onBucketClick }: AttackTimelineProps) 
 
   return (
     <section aria-label="Attack timeline" className="space-y-3">
+      <p className="sr-only">Peak of {peakBucket.eventTotal} events at {formatTime(peakBucket.t)}</p>
       {mergedToThirtyMinutes && (
         <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950" role="status">
           This timeline spans more than 2,000 five-minute buckets, so it is merged to 30-minute buckets for display.

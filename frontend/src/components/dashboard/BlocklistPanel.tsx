@@ -115,7 +115,7 @@ export function BlocklistPanel({ disabled = false }: { disabled?: boolean }) {
 
       {disabled && <p className="text-sm text-slate-600">Blocklist is disabled because no threats were detected.</p>}
 
-      <div role="tablist" aria-label="Blocklist format" className="flex flex-wrap gap-2">
+      <div role="tablist" aria-label="Blocklist format" className="print-hide flex flex-wrap gap-2">
         {FORMATS.map((item) => (
           <button
             aria-selected={format === item.format}
@@ -130,9 +130,9 @@ export function BlocklistPanel({ disabled = false }: { disabled?: boolean }) {
           </button>
         ))}
       </div>
-      <p className="text-sm text-slate-600">Place this snippet at the {FORMATS.find((item) => item.format === format)?.location}.</p>
+      <p className="print-hide text-sm text-slate-600">Place this snippet at the {FORMATS.find((item) => item.format === format)?.location}.</p>
 
-      <label className="block max-w-lg space-y-2 text-sm">
+      <label className="print-hide block max-w-lg space-y-2 text-sm">
         <span className="flex items-center justify-between gap-3">
           <span className="font-medium">Include IPs with risk &gt;=</span>
           <output aria-live="polite">{minScore}</output>
@@ -152,7 +152,7 @@ export function BlocklistPanel({ disabled = false }: { disabled?: boolean }) {
       {availableCandidates.length === 0 ? (
         <EmptyState message="No IPs meet this risk score." />
       ) : (
-        <fieldset className="space-y-2">
+        <fieldset className="print-hide space-y-2">
           <legend className="text-sm font-medium">Override blocked IPs</legend>
           <div className="max-h-52 space-y-1 overflow-y-auto rounded border border-slate-200 p-3">
             {availableCandidates.map((candidate) => (
@@ -188,7 +188,7 @@ export function BlocklistPanel({ disabled = false }: { disabled?: boolean }) {
               {output}
             </pre>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="print-hide flex flex-wrap gap-2">
             <button className="rounded border border-slate-300 px-3 py-2 text-sm" onClick={() => void handleCopyAll()} type="button">Copy all</button>
             <button className="rounded border border-slate-300 px-3 py-2 text-sm" onClick={handleDownload} type="button">Download .txt</button>
             <button className="rounded border border-slate-300 px-3 py-2 text-sm" onClick={handleSelectAll} type="button">Select all</button>
