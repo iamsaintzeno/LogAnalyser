@@ -7,3 +7,4 @@ export * from './decode';
 export * from './decode';
 export * from './rules/bruteForce';
 export * from './rules/injection';
+export * from './rules/userAgent';
