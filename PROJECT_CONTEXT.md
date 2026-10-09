@@ -57,7 +57,7 @@ No network calls of any kind: no fetch to external hosts, no CDN fonts, and no a
 
 Data path: selected `File` → `useAnalyzeFile` hook → `parser.worker.ts` → `postMessage` protocol → `useAnalyzerStore` → Dashboard. The main thread never parses lines; line parsing belongs in the worker.
 
-Protocol message types are not sure: C1 was not provided, and `index.ts` defines data contracts but no worker messages. Verify the request and response names and payloads in C1 before implementing; do not guess them.
+Worker message types are defined in `src/contracts/messages.ts`; keep them in sync with the sequence and payload table in `docs/CONTRACT.md`. Requests are `ANALYZE_FILE`, `ANALYZE_TEXT`, or `CANCEL`. Responses are `READY`, `PROGRESS`, `RESULT`, or `ERROR`. Send only structured-clone-safe data; never include functions. Emit progress no more often than every 100 ms and exactly one terminal response (`RESULT` or `ERROR`) per request ID. Ignore responses for unknown request IDs. `ParseResult.entries` must contain no more than 20,000 rows.
 
 Zero network: no fetch, XHR, WebSocket, `sendBeacon`, or EventSource to any non-same-origin URL. Fetch to same-origin `/sample` files is the only allowed exception. Do not add external data, analytics, or remote assets.
 

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 ﻿export type ThreatType = 'BRUTE_FORCE' | 'SQLI' | 'TRAVERSAL' | 'SCANNER_UA' | 'SENSITIVE_PROBE';
+=======
+export type ThreatType = 'BRUTE_FORCE' | 'SQLI' | 'TRAVERSAL' | 'SCANNER_UA' | 'SENSITIVE_PROBE';
+>>>>>>> origin/main
 export type RiskRating = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 export interface LogEntry { id: number; ip: string; ts: number /* epoch ms UTC */; method: string; path: string; query: string; proto: string; status: number; bytes: number; referer: string; ua: string; raw: string; }
 export interface ThreatEvent { id: string; entryId: number; ip: string; ts: number; type: ThreatType; ruleId: string; severity: 1 | 2 | 3; evidence: string; }
