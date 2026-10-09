@@ -1,8 +1,8 @@
 ﻿import { describe, it, expect } from 'vitest';
 import { bruteForceRule, isAuthFailure } from '../src/engine/rules/bruteForce';
-import type { LogEntry } from '../src/engine/types';
+import type { LogEntry, RuleConfig } from '../src/engine/types';
 
-const cfg = { enabled: true, weight: 15 };
+const cfg: RuleConfig = { enabled: true, weight: 15 };
 let nextId = 1;
 
 function mk(ip: string, sec: number, path: string, status: number, method = 'POST'): LogEntry {
@@ -88,3 +88,4 @@ describe('brute force rule', () => {
     expect(isAuthFailure(mk('1.1.1.1', 0, '/wp-login.php', 302, 'POST'))).toBe(false);
   });
 });
+
