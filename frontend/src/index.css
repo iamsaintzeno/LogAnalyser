@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+:where(button, input, select, textarea, a, [tabindex]):focus-visible {
+  outline: 3px solid #0891b2;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  @page { margin: 12mm; }
+
+  body {
+    min-width: 0;
+    color: #0f172a;
+    background: #fff;
+    font-size: 10pt;
+  }
+
+  .print-hide,
+  .app-shell > header,
+  .app-shell > footer { display: none !important; }
+
+  .app-shell > main { max-width: none !important; padding: 0 !important; }
+
+  .print-summary,
+  .print-attackers,
+  .print-blocklist {
+    break-inside: avoid;
+    margin-bottom: 12pt;
+  }
+
+  .print-summary > div { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .print-attackers tbody tr:nth-child(n + 11) { display: none !important; }
+  .print-attackers > div > div:last-child { display: none !important; }
+
+  .print-blocklist pre {
+    overflow: visible !important;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .print-blocklist .grid {
+    display: block !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+
+  .print-blocklist pre[aria-hidden="true"] { display: none; }
+  .print-blocklist pre[aria-label] { padding: 0 !important; }
+}

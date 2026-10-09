@@ -6,13 +6,16 @@ type AnalysisRequestInput =
   | Omit<Extract<AnalysisRequest, { type: 'ANALYZE_FILE' }>, 'requestId'>
   | Omit<Extract<AnalysisRequest, { type: 'ANALYZE_TEXT' }>, 'requestId'>;
 type WorkerResponseListener = (response: WorkerResponse) => void;
+type WorkerErrorListener = (message: string) => void;
 
 let nextRequestId = 0;
 
 export interface ParserWorkerTransport {
   postMessage(message: WorkerRequest): void;
   addEventListener(type: 'message', listener: (event: MessageEvent<WorkerResponse>) => void): void;
+  addEventListener(type: 'error', listener: (event: ErrorEvent) => void): void;
   removeEventListener(type: 'message', listener: (event: MessageEvent<WorkerResponse>) => void): void;
+  removeEventListener(type: 'error', listener: (event: ErrorEvent) => void): void;
   terminate(): void;
 }
 
@@ -23,15 +26,24 @@ export function createParserWorker(): Worker {
 export class ParserWorkerClient {
   private readonly requestIds = new Set<string>();
   private readonly listeners = new Set<WorkerResponseListener>();
+  private readonly errorListeners = new Set<WorkerErrorListener>();
+  private readonly worker: ParserWorkerTransport;
   private closed = false;
 
-  constructor(private readonly worker: ParserWorkerTransport = createParserWorker()) {
+  constructor(worker: ParserWorkerTransport = createParserWorker()) {
+    this.worker = worker;
     worker.addEventListener('message', this.handleMessage);
+    worker.addEventListener('error', this.handleError);
   }
 
   subscribe(listener: WorkerResponseListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  subscribeError(listener: WorkerErrorListener): () => void {
+    this.errorListeners.add(listener);
+    return () => this.errorListeners.delete(listener);
   }
 
   analyzeFile(file: File, overrides: RuleOverride[], allowIps: string[]): string {
@@ -57,9 +69,11 @@ export class ParserWorkerClient {
     if (this.closed) return;
     this.closed = true;
     this.worker.removeEventListener('message', this.handleMessage);
+    this.worker.removeEventListener('error', this.handleError);
     this.worker.terminate();
     this.requestIds.clear();
     this.listeners.clear();
+    this.errorListeners.clear();
   }
 
   private sendAnalysis(request: AnalysisRequestInput): string {
@@ -82,5 +96,10 @@ export class ParserWorkerClient {
       this.requestIds.delete(response.requestId);
     }
     for (const listener of this.listeners) listener(response);
+  };
+
+  private readonly handleError = (event: ErrorEvent): void => {
+    const message = event.message || 'The parser worker failed unexpectedly';
+    for (const listener of this.errorListeners) listener(message);
   };
 }

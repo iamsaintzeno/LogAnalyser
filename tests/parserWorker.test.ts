@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFile } from 'node:fs/promises';
 import type { LogEntry, ParseResult } from '../src/contracts/index.ts';
 import type { WorkerRequest, WorkerResponse } from '../src/contracts/messages.ts';
 import {
@@ -86,6 +87,31 @@ function createHarness(engine: ParserEngine) {
 }
 
 describe('parser worker scaffold', () => {
+  it('processes the full deterministic sample through the real file-stream pipeline', async () => {
+    const text = await readFile(new URL('../public/sample-nginx-5000.log', import.meta.url), 'utf8');
+    const file = {
+      name: 'sample-nginx-5000.log',
+      size: new TextEncoder().encode(text).byteLength,
+      stream: () => new Blob([text]).stream(),
+    } as File;
+    const harness = createHarness(createParserEngine());
+
+    harness.send({
+      type: 'ANALYZE_FILE',
+      requestId: 'fixture-file-request',
+      file,
+      overrides: [],
+      allowIps: [],
+    });
+
+    const terminal = await harness.waitForTerminal('fixture-file-request');
+    expect(terminal.type).toBe('RESULT');
+    if (terminal.type !== 'RESULT') throw new Error('Expected the sample file to parse');
+    expect(terminal.result.session.totalLines).toBe(5_000);
+    expect(terminal.result.session.parsedLines).toBe(4_995);
+    expect(terminal.result.session.skippedLines).toBe(5);
+  });
+
   it('integrates the backend parser and analyzer through the C1 text request', async () => {
     const engine = createParserEngine();
     const line = '203.0.113.45 - - [08/Oct/2026:03:12:07 +0000] "GET /products.php?id=1%20UNION%20SELECT%20password%20FROM%20users HTTP/1.1" 200 100 "-" "Mozilla/5.0"';
