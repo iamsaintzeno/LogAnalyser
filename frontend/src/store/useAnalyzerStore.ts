@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ParseResult, ThreatType } from '../contracts';
+import type { BlocklistRule, ParseResult, ThreatType } from '../contracts';
 
 export interface FilterState {
   types: ThreatType[];
@@ -22,6 +22,8 @@ interface AnalyzerState {
   progress: AnalyzerProgress;
   result: ParseResult | null;
   error: string | null;
+  blocklist: BlocklistRule[];
+  addToBlocklist: (ip: string) => void;
   filters: FilterState;
   updateFilters: (filters: Partial<FilterState>) => void;
   resetFilters: () => void;
@@ -40,6 +42,20 @@ export const useAnalyzerStore = create<AnalyzerState>((set) => ({
   progress: emptyProgress(),
   result: null,
   error: null,
+  blocklist: [],
+  addToBlocklist: (ip) => set((state) => {
+    if (state.blocklist.some((rule) => rule.ip === ip)) return state;
+    const score = state.result?.session.summaries.find((summary) => summary.ip === ip)?.score ?? 0;
+    return {
+      blocklist: [...state.blocklist, {
+        ip,
+        format: 'plain',
+        reason: 'Added from attacker details',
+        score,
+        enabled: true,
+      }],
+    };
+  }),
   filters: emptyFilters(),
   updateFilters: (filters) => set((state) => ({ filters: { ...state.filters, ...filters } })),
   resetFilters: () => set({ filters: emptyFilters() }),

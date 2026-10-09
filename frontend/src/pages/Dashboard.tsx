@@ -1,13 +1,16 @@
+import { useState } from 'react';
 import { useAnalyzerStore } from '../store/useAnalyzerStore';
 import { SummaryCards } from '../components/dashboard/SummaryCards';
 import { AttackTimeline } from '../components/dashboard/AttackTimeline';
 import { AttackerTable } from '../components/dashboard/AttackerTable';
 import { FilterBar } from '../components/dashboard/FilterBar';
+import { IpDetailModal } from '../components/dashboard/IpDetailModal';
 import { selectThreatTypeCounts, useFilteredData } from '../store/selectors';
 
 export function Dashboard() {
   const result = useAnalyzerStore((state) => state.result);
   const { summaries, timeline } = useFilteredData();
+  const [selectedIP, setSelectedIP] = useState<string | null>(null);
 
   if (!result) {
     return (
@@ -44,9 +47,10 @@ export function Dashboard() {
       {result && (
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">Attackers</h2>
-          <AttackerTable rows={summaries} onRowClick={() => {}} />
+          <AttackerTable rows={summaries} onRowClick={setSelectedIP} />
         </section>
       )}
+      {selectedIP && <IpDetailModal ip={selectedIP} onClose={() => setSelectedIP(null)} />}
       <p>Analysis results will be shown here.</p>
       <p>
         Mock data includes 12 attacker summaries, 60 threat events, 120 flagged log entries,
