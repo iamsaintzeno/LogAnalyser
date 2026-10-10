@@ -32,7 +32,7 @@ export interface FilterBarProps {
 
 export function FilterBar({ typeCounts, firstTimestamp, lastTimestamp, shownIPs, totalIPs }: FilterBarProps) {
   const filters = useAnalyzerStore((state) => state.filters);
-  const updateFilters = useAnalyzerStore((state) => state.updateFilters);
+  const setFilters = useAnalyzerStore((state) => state.setFilters);
   const resetFilters = useAnalyzerStore((state) => state.resetFilters);
   const [minScoreDraft, setMinScoreDraft] = useState(filters.minScore);
   const [ipQueryDraft, setIPQueryDraft] = useState(filters.ipQuery);
@@ -40,10 +40,10 @@ export function FilterBar({ typeCounts, firstTimestamp, lastTimestamp, shownIPs,
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      updateFilters({ minScore: minScoreDraft, ipQuery: ipQueryDraft });
+      setFilters({ minScore: minScoreDraft, ipQuery: ipQueryDraft });
     }, 200);
     return () => window.clearTimeout(timeout);
-  }, [ipQueryDraft, minScoreDraft, updateFilters]);
+  }, [ipQueryDraft, minScoreDraft, setFilters]);
 
   useEffect(() => {
     setMinScoreDraft(filters.minScore);
@@ -58,7 +58,7 @@ export function FilterBar({ typeCounts, firstTimestamp, lastTimestamp, shownIPs,
       ? currentTypes.filter((item) => item !== type)
       : [...currentTypes, type];
 
-    updateFilters({ types: nextTypes.length === THREAT_TYPES.length ? [] : nextTypes });
+    setFilters({ types: nextTypes.length === THREAT_TYPES.length ? [] : nextTypes });
   }
 
   function handleReset() {
@@ -98,7 +98,7 @@ export function FilterBar({ typeCounts, firstTimestamp, lastTimestamp, shownIPs,
             className="w-full rounded border border-slate-300 px-3 py-2"
             max={maxValue}
             min={minValue}
-            onChange={(event) => updateFilters({ from: parseDateTimeValue(event.currentTarget.value) })}
+            onChange={(event) => setFilters({ from: parseDateTimeValue(event.currentTarget.value) })}
             type="datetime-local"
             step={1}
             value={fromValue}
@@ -110,7 +110,7 @@ export function FilterBar({ typeCounts, firstTimestamp, lastTimestamp, shownIPs,
             className="w-full rounded border border-slate-300 px-3 py-2"
             max={maxValue}
             min={minValue}
-            onChange={(event) => updateFilters({ to: parseDateTimeValue(event.currentTarget.value) })}
+            onChange={(event) => setFilters({ to: parseDateTimeValue(event.currentTarget.value) })}
             type="datetime-local"
             step={1}
             value={toValue}

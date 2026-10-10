@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { LogDropzone } from '../components/upload/LogDropzone';
-import { mockResult } from '../mock/mockResult';
 import { useAnalyzerStore } from '../store/useAnalyzerStore';
+import { useLogAnalysis } from '../hooks/useLogAnalysis';
+import { generateMockLog } from '../../../src/lib/mockLog.ts';
 
-const SIMULATED_TOTAL_BYTES = 3000;
-const SIMULATION_DURATION_MS = 3000;
-
-function ParseProgress({ onCancel }: { onCancel: () => void }) {
+function ParseProgress({ onCancel, skipped }: { onCancel: () => void; skipped: number }) {
   const progress = useAnalyzerStore((state) => state.progress);
   const [announcedProgress, setAnnouncedProgress] = useState(progress);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -50,6 +48,7 @@ function ParseProgress({ onCancel }: { onCancel: () => void }) {
       <p aria-live="polite" className="text-sm">
         Parsed {announcedProgress.lines} lines - {announcedPercent}%
       </p>
+      <p className="text-sm text-slate-600">Skipped {skipped} lines</p>
       <p className="text-sm text-slate-600">Elapsed {elapsedSeconds} seconds</p>
       <button
         className="rounded-md border border-slate-300 px-4 py-2 font-medium hover:bg-slate-50"
@@ -81,9 +80,15 @@ function ErrorMessage({ message, onTryAgain }: { message: string; onTryAgain: ()
   );
 }
 
-function IdleUpload({ onSimulateParsing }: { onSimulateParsing: () => void }) {
-  const setResult = useAnalyzerStore((state) => state.setResult);
-
+function IdleUpload({
+  onFile,
+  onDemo,
+  parserReady,
+}: {
+  onFile: (file: File) => void;
+  onDemo: () => void;
+  parserReady: boolean;
+}) {
   return (
     <section className="space-y-8">
       <div className="space-y-3">
@@ -106,76 +111,24 @@ function IdleUpload({ onSimulateParsing }: { onSimulateParsing: () => void }) {
       </div>
 
       <LogDropzone
-        onFile={() => {
-          // The parser is not part of this step.
-        }}
-        onDemo={onSimulateParsing}
+        disabled={!parserReady}
+        onFile={onFile}
+        onDemo={onDemo}
       />
 
-      {import.meta.env.DEV && (
-        <button
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50"
-          onClick={onSimulateParsing}
-          type="button"
-        >
-          Simulate parsing
-        </button>
-      )}
-
-      <button
-        className="rounded-md border border-slate-300 px-4 py-2 font-medium hover:bg-slate-50"
-        onClick={() => setResult(mockResult)}
-        type="button"
-      >
-        Load mock result
-      </button>
+      {!parserReady && <p className="text-sm text-slate-600" role="status">Starting the local parser…</p>}
     </section>
   );
 }
 
 export function UploadPage() {
+  const { analyzeFile, analyzeText, cancel, ready: parserReady, skipped } = useLogAnalysis();
   const status = useAnalyzerStore((state) => state.status);
   const error = useAnalyzerStore((state) => state.error);
   const reset = useAnalyzerStore((state) => state.reset);
-  const startParsing = useAnalyzerStore((state) => state.startParsing);
-  const setProgress = useAnalyzerStore((state) => state.setProgress);
-  const setResult = useAnalyzerStore((state) => state.setResult);
-  const timer = useRef<number | null>(null);
-
-  useEffect(() => () => {
-    if (timer.current !== null) window.clearInterval(timer.current);
-  }, []);
-
-  function simulateParsing() {
-    if (timer.current !== null) window.clearInterval(timer.current);
-    startParsing('mock-access.log', SIMULATED_TOTAL_BYTES);
-    const startedAt = Date.now();
-
-    timer.current = window.setInterval(() => {
-      const elapsed = Math.min(Date.now() - startedAt, SIMULATION_DURATION_MS);
-      const fraction = elapsed / SIMULATION_DURATION_MS;
-      setProgress({
-        bytesRead: Math.round(SIMULATED_TOTAL_BYTES * fraction),
-        totalBytes: SIMULATED_TOTAL_BYTES,
-        lines: Math.round(mockResult.session.parsedLines * fraction),
-      });
-
-      if (elapsed >= SIMULATION_DURATION_MS) {
-        if (timer.current !== null) window.clearInterval(timer.current);
-        timer.current = null;
-        setResult(mockResult);
-      }
-    }, 100);
-  }
-
-  function cancelParsing() {
-    if (timer.current !== null) window.clearInterval(timer.current);
-    timer.current = null;
-    reset();
-  }
 
   if (status === 'parsing') {
-    return <ParseProgress onCancel={cancelParsing} />;
+    return <ParseProgress onCancel={cancel} skipped={skipped} />;
   }
 
   if (status === 'error') {
@@ -184,5 +137,10 @@ export function UploadPage() {
 
   if (status === 'done') return null;
 
-  return <IdleUpload onSimulateParsing={simulateParsing} />;
+  const runDemo = () => {
+    const { text } = generateMockLog();
+    analyzeText(text, 'sample-nginx-5000.log');
+  };
+
+  return <IdleUpload onFile={analyzeFile} onDemo={runDemo} parserReady={parserReady} />;
 }

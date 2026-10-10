@@ -59,6 +59,41 @@ function EmptyState() {
   return <p className="rounded-lg border border-slate-200 p-6 text-slate-600">No attackers match these filters</p>;
 }
 
+function AttackerTableSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading attackers" className="space-y-3" role="status">
+      <div aria-hidden="true" className="overflow-x-auto rounded-lg border border-slate-200">
+        <table className="w-full min-w-[760px] border-collapse text-sm">
+          <thead className="bg-slate-50">
+            <tr>
+              {[12, 24, 20, 28, 20, 36, 24].map((width, index) => (
+                <th className={`px-3 py-3 ${index === 2 || index === 5 ? 'hidden sm:table-cell' : ''}`} key={index}>
+                  <span className="block h-4 animate-pulse rounded bg-slate-300" style={{ width: `${width * 2}px` }} />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 5 }, (_, row) => (
+              <tr className="border-t border-slate-200" key={row}>
+                {[12, 24, 20, 28, 20, 36, 24].map((width, column) => (
+                  <td className={`px-3 py-3 ${column === 2 || column === 5 ? 'hidden sm:table-cell' : ''}`} key={column}>
+                    <span className="block h-4 animate-pulse rounded bg-slate-200" style={{ width: `${width * 2}px` }} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex justify-between" aria-hidden="true">
+        <span className="h-8 w-28 animate-pulse rounded bg-slate-200" />
+        <span className="h-8 w-24 animate-pulse rounded bg-slate-200" />
+      </div>
+    </div>
+  );
+}
+
 function SortHeader({
   label,
   sortKey,
@@ -94,7 +129,7 @@ function RiskScore({ score, rating }: { score: number; rating: RiskRating }) {
         aria-valuemax={100}
         aria-valuemin={0}
         aria-valuenow={boundedScore}
-        className="h-2 w-14 overflow-hidden rounded-full bg-slate-200"
+        className="h-2 w-14 overflow-hidden rounded-full bg-slate-950"
         role="progressbar"
       >
         <span className={`block h-full ${RISK_BAR_COLORS[rating]}`} style={{ width: `${boundedScore}%` }} />
@@ -107,9 +142,10 @@ function RiskScore({ score, rating }: { score: number; rating: RiskRating }) {
 export interface AttackerTableProps {
   rows: AttackerIPSummary[];
   onRowClick: (ip: string) => void;
+  loading?: boolean;
 }
 
-export function AttackerTable({ rows, onRowClick }: AttackerTableProps) {
+export function AttackerTable({ rows, onRowClick, loading = false }: AttackerTableProps) {
   const [sort, setSort] = useState<SortState>({ key: 'risk', direction: 'desc' });
   const [page, setPage] = useState(0);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -156,6 +192,7 @@ export function AttackerTable({ rows, onRowClick }: AttackerTableProps) {
     return indexedRows;
   }, [rows, sort]);
 
+  if (loading) return <AttackerTableSkeleton />;
   if (rows.length === 0) return <EmptyState />;
 
   const pageCount = Math.ceil(sortedRows.length / PAGE_SIZE);

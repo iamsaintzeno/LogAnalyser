@@ -9,24 +9,31 @@ import {
 class FakeWorker implements ParserWorkerTransport {
   readonly requests: WorkerRequest[] = [];
   readonly listeners = new Set<(event: MessageEvent<WorkerResponse>) => void>();
+  readonly errorListeners = new Set<(event: ErrorEvent) => void>();
   terminated = false;
 
   postMessage(message: WorkerRequest): void {
     this.requests.push(message);
   }
 
+  addEventListener(type: 'message', listener: (event: MessageEvent<WorkerResponse>) => void): void;
+  addEventListener(type: 'error', listener: (event: ErrorEvent) => void): void;
   addEventListener(
-    _type: 'message',
-    listener: (event: MessageEvent<WorkerResponse>) => void,
+    type: 'message' | 'error',
+    listener: ((event: MessageEvent<WorkerResponse>) => void) | ((event: ErrorEvent) => void),
   ): void {
-    this.listeners.add(listener);
+    if (type === 'message') this.listeners.add(listener as (event: MessageEvent<WorkerResponse>) => void);
+    else this.errorListeners.add(listener as (event: ErrorEvent) => void);
   }
 
+  removeEventListener(type: 'message', listener: (event: MessageEvent<WorkerResponse>) => void): void;
+  removeEventListener(type: 'error', listener: (event: ErrorEvent) => void): void;
   removeEventListener(
-    _type: 'message',
-    listener: (event: MessageEvent<WorkerResponse>) => void,
+    type: 'message' | 'error',
+    listener: ((event: MessageEvent<WorkerResponse>) => void) | ((event: ErrorEvent) => void),
   ): void {
-    this.listeners.delete(listener);
+    if (type === 'message') this.listeners.delete(listener as (event: MessageEvent<WorkerResponse>) => void);
+    else this.errorListeners.delete(listener as (event: ErrorEvent) => void);
   }
 
   terminate(): void {
@@ -36,6 +43,11 @@ class FakeWorker implements ParserWorkerTransport {
   respond(response: WorkerResponse): void {
     const event = { data: response } as MessageEvent<WorkerResponse>;
     for (const listener of this.listeners) listener(event);
+  }
+
+  fail(message: string): void {
+    const event = { message } as ErrorEvent;
+    for (const listener of this.errorListeners) listener(event);
   }
 }
 
@@ -122,6 +134,19 @@ describe('parser worker client', () => {
     });
 
     expect(received.map((response) => response.type)).toEqual(['READY', 'PROGRESS', 'ERROR']);
+  });
+
+  it('forwards worker runtime errors and detaches the handler when terminated', () => {
+    const worker = new FakeWorker();
+    const client = new ParserWorkerClient(worker);
+    const errors: string[] = [];
+    client.subscribeError((message) => errors.push(message));
+
+    worker.fail('worker initialization failed');
+    expect(errors).toEqual(['worker initialization failed']);
+
+    client.terminate();
+    expect(worker.errorListeners.size).toBe(0);
   });
 
   it('cancels only known requests and removes listeners when terminated', () => {

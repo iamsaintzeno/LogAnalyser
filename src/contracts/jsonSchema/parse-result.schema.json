@@ -87,7 +87,10 @@
       "required": ["t", "total", "byType"],
       "properties": {
         "t": { "type": "number" },
-        "total": { "type": "number" },
+        "total": {
+          "type": "number",
+          "description": "Detected threat events in this bucket; equal to the sum of byType counts."
+        },
         "byType": { "$ref": "#/definitions/ThreatCounts" }
       }
     },

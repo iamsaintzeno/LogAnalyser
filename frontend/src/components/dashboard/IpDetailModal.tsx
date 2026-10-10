@@ -131,7 +131,8 @@ function ScoreRing({ score, rating }: { score: number; rating: keyof typeof RISK
 
   return (
     <svg aria-label={`Risk score ${boundedScore} out of 100`} className="h-28 w-28" role="img" viewBox="0 0 100 100">
-      <circle cx="50" cy="50" fill="none" r="44" stroke="#e2e8f0" strokeWidth="8" />
+      <circle cx="50" cy="50" fill="#020617" r="44" />
+      <circle cx="50" cy="50" fill="none" r="44" stroke="#475569" strokeWidth="8" />
       <circle
         cx="50"
         cy="50"
@@ -144,10 +145,10 @@ function ScoreRing({ score, rating }: { score: number; rating: keyof typeof RISK
         strokeWidth="8"
         transform="rotate(-90 50 50)"
       />
-      <text dominantBaseline="middle" textAnchor="middle" x="50" y="50" className="fill-slate-900 text-xl font-semibold">
+      <text dominantBaseline="middle" textAnchor="middle" x="50" y="50" className="fill-white text-xl font-semibold">
         {boundedScore}
       </text>
-      <text dominantBaseline="middle" textAnchor="middle" x="50" y="68" className="fill-slate-500 text-[8px]">
+      <text dominantBaseline="middle" textAnchor="middle" x="50" y="68" className="fill-slate-300 text-[8px]">
         RISK SCORE
       </text>
     </svg>
@@ -170,7 +171,7 @@ export function IpDetailModal({ ip, onClose }: IpDetailModalProps) {
   const onCloseRef = useRef(onClose);
   const result = useAnalyzerStore((state) => state.result);
   const addToBlocklist = useAnalyzerStore((state) => state.addToBlocklist);
-  const isBlocked = useAnalyzerStore((state) => state.blocklist.some((rule) => rule.ip === ip && rule.enabled));
+  const isBlocked = useAnalyzerStore((state) => state.blocklistSelection[ip] === true);
   const [selectedType, setSelectedType] = useState<ThreatType | 'ALL'>('ALL');
   const [page, setPage] = useState(0);
   const [copiedAction, setCopiedAction] = useState<string | null>(null);
@@ -253,7 +254,7 @@ export function IpDetailModal({ ip, onClose }: IpDetailModalProps) {
     <dialog
       aria-labelledby="ip-detail-title"
       aria-modal="true"
-      className="m-auto max-h-[90vh] w-[min(1100px,95vw)] overflow-y-auto rounded-xl p-0 backdrop:bg-black/50"
+      className="print-hide m-auto max-h-[90vh] w-[min(1100px,95vw)] overflow-y-auto rounded-xl p-0 backdrop:bg-black/50"
       onCancel={(event) => {
         event.preventDefault();
         onCloseRef.current();
@@ -271,6 +272,9 @@ export function IpDetailModal({ ip, onClose }: IpDetailModalProps) {
             </div>
             <p className="mt-3 break-all text-sm text-slate-600">
               First seen {formatLocalDateTime(attacker.firstSeen)} · Last seen {formatLocalDateTime(attacker.lastSeen)}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Times shown in {Intl.DateTimeFormat().resolvedOptions().timeZone || 'your local timezone'}.
             </p>
           </div>
           <ScoreRing rating={attacker.rating} score={attacker.score} />
@@ -361,6 +365,7 @@ export function IpDetailModal({ ip, onClose }: IpDetailModalProps) {
                     <tr>
                       <th className="p-2">Time</th><th className="p-2">Type</th><th className="p-2">Method</th>
                       <th className="p-2">Path + query</th><th className="p-2">Status</th><th className="p-2">User agent</th>
+                      <th className="p-2">Referer</th>
                       <th className="p-2">Evidence</th><th className="p-2">Action</th>
                     </tr>
                   </thead>
@@ -379,6 +384,7 @@ export function IpDetailModal({ ip, onClose }: IpDetailModalProps) {
                           <td className="max-w-52 break-all p-2" title={pathQuery}>{truncate(pathQuery)}</td>
                           <td className="p-2">{entry?.status ?? ''}</td>
                           <td className="max-w-40 break-all p-2" title={entry?.ua ?? ''}>{truncate(entry?.ua ?? '')}</td>
+                          <td className="max-w-40 break-all p-2" title={entry?.referer ?? ''}>{truncate(entry?.referer ?? '')}</td>
                           <td className="max-w-56 break-all p-2">{event.evidence}</td>
                           <td className="p-2">
                             <button

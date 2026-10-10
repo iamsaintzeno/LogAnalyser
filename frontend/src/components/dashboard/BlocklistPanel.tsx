@@ -32,10 +32,16 @@ function makeRule(candidate: Candidate, format: BlocklistFormat): BlocklistRule 
   };
 }
 
-export function BlocklistPanel() {
+export function BlocklistPanel({ disabled = false }: { disabled?: boolean }) {
   const summaries = useAnalyzerStore((state) => state.result?.session.summaries ?? []);
-  const manualRules = useAnalyzerStore((state) => state.blocklist);
-  const [minScore, setMinScore] = useState(60);
+  const blocklistSelection = useAnalyzerStore((state) => state.blocklistSelection);
+  const manualIps = useMemo(
+    () => Object.keys(blocklistSelection).filter((ip) => blocklistSelection[ip]),
+    [blocklistSelection],
+  );
+  const allowIps = useAnalyzerStore((state) => state.allowIps);
+  const minScore = useAnalyzerStore((state) => state.blocklistMinScore);
+  const setBlocklistMinScore = useAnalyzerStore((state) => state.setBlocklistMinScore);
   const [format, setFormat] = useState<BlocklistFormat>('htaccess24');
   const [excludedIPs, setExcludedIPs] = useState<Set<string>>(() => new Set());
   const [announcement, setAnnouncement] = useState('');
@@ -43,22 +49,26 @@ export function BlocklistPanel() {
 
   const candidates = useMemo(() => {
     const byIP = new Map<string, Candidate>();
+    const allowed = new Set(allowIps);
     for (const summary of summaries) {
+      if (allowed.has(summary.ip)) continue;
       if (summary.score >= minScore) {
         byIP.set(summary.ip, { ip: summary.ip, score: summary.score, manual: false });
       }
     }
-    for (const rule of manualRules) {
-      byIP.set(rule.ip, {
-        ip: rule.ip,
-        score: summaries.find((summary) => summary.ip === rule.ip)?.score ?? rule.score,
+    for (const ip of manualIps) {
+      if (allowed.has(ip)) continue;
+      byIP.set(ip, {
+        ip,
+        score: summaries.find((summary) => summary.ip === ip)?.score ?? 0,
         manual: true,
       });
     }
     return [...byIP.values()].sort((left, right) => right.score - left.score || left.ip.localeCompare(right.ip));
-  }, [manualRules, minScore, summaries]);
+  }, [allowIps, manualIps, minScore, summaries]);
+  const availableCandidates = disabled ? [] : candidates;
 
-  const selectedCandidates = candidates.filter((candidate) => !excludedIPs.has(candidate.ip));
+  const selectedCandidates = availableCandidates.filter((candidate) => !excludedIPs.has(candidate.ip));
   const rules = selectedCandidates.map((candidate) => makeRule(candidate, format));
   const output = generateBlocklist(rules, format, minScore);
   const lines = output.split('\n');
@@ -112,13 +122,16 @@ export function BlocklistPanel() {
         </div>
       </div>
 
-      <div role="tablist" aria-label="Blocklist format" className="flex flex-wrap gap-2">
+      {disabled && <p className="text-sm text-slate-600">Blocklist is disabled because no threats were detected.</p>}
+
+      <div role="tablist" aria-label="Blocklist format" className="print-hide flex flex-wrap gap-2">
         {FORMATS.map((item) => (
           <button
             aria-selected={format === item.format}
             className={`rounded border px-3 py-2 text-sm ${format === item.format ? 'border-cyan-600 bg-cyan-50 text-cyan-900' : 'border-slate-300'}`}
             key={item.format}
             onClick={() => setFormat(item.format)}
+            disabled={disabled}
             role="tab"
             type="button"
           >
@@ -126,9 +139,9 @@ export function BlocklistPanel() {
           </button>
         ))}
       </div>
-      <p className="text-sm text-slate-600">Place this snippet at the {FORMATS.find((item) => item.format === format)?.location}.</p>
+      <p className="print-hide text-sm text-slate-600">Place this snippet at the {FORMATS.find((item) => item.format === format)?.location}.</p>
 
-      <label className="block max-w-lg space-y-2 text-sm">
+      <label className="print-hide block max-w-lg space-y-2 text-sm">
         <span className="flex items-center justify-between gap-3">
           <span className="font-medium">Include IPs with risk &gt;=</span>
           <output aria-live="polite">{minScore}</output>
@@ -137,24 +150,26 @@ export function BlocklistPanel() {
           className="w-full accent-cyan-600"
           max={100}
           min={0}
-          onChange={(event) => setMinScore(Number(event.currentTarget.value))}
+          onChange={(event) => setBlocklistMinScore(Number(event.currentTarget.value))}
           step={5}
           type="range"
           value={minScore}
+          disabled={disabled}
         />
       </label>
 
-      {candidates.length === 0 ? (
+      {availableCandidates.length === 0 ? (
         <EmptyState message="No IPs meet this risk score." />
       ) : (
-        <fieldset className="space-y-2">
+        <fieldset className="print-hide space-y-2">
           <legend className="text-sm font-medium">Override blocked IPs</legend>
           <div className="max-h-52 space-y-1 overflow-y-auto rounded border border-slate-200 p-3">
-            {candidates.map((candidate) => (
+            {availableCandidates.map((candidate) => (
               <label className="flex items-center gap-2 text-sm" key={candidate.ip}>
                 <input
                   checked={!excludedIPs.has(candidate.ip)}
                   onChange={() => toggleCandidate(candidate.ip)}
+                  disabled={disabled}
                   type="checkbox"
                 />
                 <code className="break-all">{candidate.ip}</code>
@@ -182,7 +197,7 @@ export function BlocklistPanel() {
               {output}
             </pre>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="print-hide flex flex-wrap gap-2">
             <button className="rounded border border-slate-300 px-3 py-2 text-sm" onClick={() => void handleCopyAll()} type="button">Copy all</button>
             <button className="rounded border border-slate-300 px-3 py-2 text-sm" onClick={handleDownload} type="button">Download .txt</button>
             <button className="rounded border border-slate-300 px-3 py-2 text-sm" onClick={handleSelectAll} type="button">Select all</button>

@@ -94,6 +94,10 @@ describe('mock log generator', () => {
       parsedLines: entries.length,
       skippedLines: lines.length - entries.length,
     });
+    expect(result.session.timeline.every((bucket) => (
+      bucket.total === Object.values(bucket.byType).reduce((sum, count) => sum + count, 0)
+    ))).toBe(true);
+    expect(result.session.timeline.reduce((sum, bucket) => sum + bucket.total, 0)).toBe(result.events.length);
     const eventsByLine = new Map<number, Set<string>>();
     for (const event of result.events) {
       const types = eventsByLine.get(event.entryId) ?? new Set<string>();
